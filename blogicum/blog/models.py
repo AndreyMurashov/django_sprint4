@@ -54,7 +54,8 @@ class Post(BaseModel):
                                     help_text='Если установить дату и время '
                                               'в будущем — можно делать '
                                               'отложенные публикации.')
-    image = models.ImageField('Фото', blank=True, upload_to='posts_images')
+    image = models.ImageField('Фото', blank=True,
+                              upload_to='posts_images')
 
     author = models.ForeignKey(
         User,
@@ -92,7 +93,8 @@ class Comment(models.Model):
                              verbose_name='публикация',
                              on_delete=models.CASCADE,
                              related_name='comment')
-    created_at = models.DateTimeField(verbose_name='Добавлено', auto_now_add=True)
+    created_at = models.DateTimeField(verbose_name='Добавлено',
+                                      auto_now_add=True)
     author = models.ForeignKey(User, verbose_name='Автор комментария',
                                on_delete=models.CASCADE)
 
