@@ -12,46 +12,59 @@ import datetime
 
 POST_LIMIT = 5
 PAGINATOR_COUNT = 10
+TODAY = datetime.datetime.now()
 
 # Отображение постов
 
 
+def get_posts():
+    posts = Post.objects.all()
+    return posts
+
+
+def get_selected_posts():
+    selected_posts = get_posts().filter(pub_date__lte=TODAY,
+                                        is_published=True,
+                                        category__is_published=True)
+    return selected_posts
+
+
 def index(request):
-    today = datetime.datetime.now()
     template_name = 'blog/index.html'
-    post_list = (Post.objects.filter(pub_date__lte=today,
-                                    is_published=True,
-                                    category__is_published=True).annotate(comment_count=Count("comment"))
-                 .order_by('-pub_date'))
+    post_list = get_selected_posts().annotate(comment_count=Count("comment")).order_by('-pub_date')
+        # (Post.objects.filter(pub_date__lte=today,
+        #                              is_published=True,
+        #                              category__is_published=True)
+        #
     paginator = Paginator(post_list, PAGINATOR_COUNT)
     page_obj = paginator.get_page(request.GET.get('page'))
     context = {'page_obj': page_obj}
     return render(request, template_name, context)
 
-# def post_detail(request, pk):
-#     today = datetime.datetime.now()
-#     template_name = 'blog/detail.html'
-#     try:
-#         post = get_object_or_404(Post.objects
-#                                  .filter(pub_date__lte=today,
-#                                          is_published=True,
-#                                          category__is_published=True),
-#                                  pk=pk)
-#         context = {'post': post}
-#         return render(request, template_name, context)
-#     except IndexError:
-#         return HttpResponseNotFound('<h1>404 Page not found</h1>')
-
 
 class PostDetailView(DetailView):
     today = datetime.datetime.now()
-    model = Post
     template_name = 'blog/detail.html'
 
-    def get_object(self, queryset=None):
-        return get_object_or_404(Post.objects.filter(pub_date__lte=self.today,
-                                                     is_published=True,
-                                                     category__is_published=True), pk=self.kwargs['post_id'])
+    def get_object(self):
+        ppp = get_object_or_404(Post, pk=self.kwargs['post_id'])
+        # self.pub_author =
+        #self.pub = get_object_or_404(get_selected_posts().filter(pk=self.kwargs['post_id']))
+        # pub = self.pub_for_author.filter(pub_date__lte=self.today,
+        #                         is_published=True,
+        #                         category__is_published=True)
+        # pub = get_object_or_404(Post,
+        #                         pub_date__lte=self.today,
+        #                         is_published=True,
+        #                         category__is_published=True,
+        #                         pk=self.kwargs['post_id'])
+
+        if ppp.author == self.request.user:
+            pub_author = get_object_or_404(get_posts().filter(pk=self.kwargs['post_id']))
+            return pub_author
+        else:
+            pub = get_object_or_404(get_selected_posts(), pk=self.kwargs['post_id'])
+        return pub
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -62,16 +75,10 @@ class PostDetailView(DetailView):
 
 class CategoryPostsListView(ListView):
     today = datetime.datetime.now()
-    model = Post
     paginate_by = PAGINATOR_COUNT
     template_name = 'blog/category.html'
 
     def get_queryset(self):
-        # category = get_object_or_404(
-        #     Category,
-        #     slug=self.kwargs['category_slug'],
-        #     is_published=True)
-
         return (
             Post.objects.select_related('category').filter(category__slug=self.kwargs['category_slug'],
                                                            is_published=True,
@@ -82,7 +89,7 @@ class CategoryPostsListView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['category'] = get_object_or_404(
-            Category.objects.values('id', 'title', 'description'),
+            Category.objects.filter(is_published=True),
             slug=self.kwargs['category_slug'])
         return context
 
@@ -90,8 +97,8 @@ class CategoryPostsListView(ListView):
 # Действия с постами
 
 class PostCreateView(LoginRequiredMixin, CreateView):
-    form_class = PostForm
     model = Post
+    form_class = PostForm
     template_name = 'blog/create.html'
 
     def form_valid(self, form):
@@ -103,19 +110,19 @@ class PostCreateView(LoginRequiredMixin, CreateView):
 
 
 class PostUpdateView(LoginRequiredMixin, UpdateView):
-    form_class = PostForm
     model = Post
+    form_class = PostForm
     template_name = 'blog/create.html'
     pk_url_kwarg = 'post_id'
 
     def dispatch(self, request, *args, **kwargs):
         if self.get_object().author != request.user:
-            return redirect('blog:post_detail', pk=self.kwargs['post_id'])
+            return redirect('blog:post_detail', post_id=self.kwargs['post_id'])
         return super().dispatch(request, *args, **kwargs)
 
     def get_success_url(self):
         return reverse('blog:post_detail',
-                       kwargs={'pk': self.kwargs['post_id']})
+                       kwargs={'post_id': self.kwargs['post_id']})
 
 
 class PostDeleteView(LoginRequiredMixin, DeleteView):
@@ -125,7 +132,7 @@ class PostDeleteView(LoginRequiredMixin, DeleteView):
 
     def dispatch(self, request, *args, **kwargs):
         if self.get_object().author != request.user:
-            return redirect('blog:post_detail', pk=self.kwargs['post_id'])
+            return redirect('blog:post_detail', post_id=self.kwargs['post_id'])
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -164,7 +171,7 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
 
     def get_success_url(self):
         return reverse("blog:post_detail",
-                       kwargs={'pk': self.kwargs['post_id']})
+                       kwargs={'post_id': self.kwargs['post_id']})
 
 
 class CommentUpdateView(UpdateView):
@@ -179,7 +186,7 @@ class CommentUpdateView(UpdateView):
             pk=kwargs['comment_id'],
         )
         if comment.author != request.user:
-            return redirect('blog:post_detail', id=kwargs['post_id'])
+            return redirect('blog:post_detail', post_id=kwargs['post_id'])
         return super().dispatch(request, *args, **kwargs)
 
     def get_success_url(self):
@@ -198,19 +205,20 @@ class CommentDeleteView(DeleteView):
             pk=kwargs['comment_id'],
         )
         if comment.author != request.user:
-            return redirect('blog:post_detail', id=kwargs['post_id'])
+            return redirect('blog:post_detail', post_id=kwargs['post_id'])
         return super().dispatch(request, *args, **kwargs)
 
     def get_success_url(self):
         return reverse("blog:post_detail",
-                       kwargs={'pk': self.kwargs['post_id']})
+                       kwargs={'post_id': self.kwargs['post_id']})
 
 
 # Действия с пользователями
 def profile(request, username):
     template_name = 'blog/profile.html'
     user = get_object_or_404(User, username=username)
-    post_list = Post.objects.all().select_related('author').filter(author__username=username).annotate(comment_count=Count("comment")).order_by('-pub_date')
+    post_list = (Post.objects.all().select_related('author').filter(author__username=username)
+                 .annotate(comment_count=Count("comment")).order_by('-pub_date'))
     paginator = Paginator(post_list, PAGINATOR_COUNT)
     page_obj = paginator.get_page(
         request.GET.get('page')
@@ -220,25 +228,6 @@ def profile(request, username):
         'profile': user
     }
     return render(request, template_name, context)
-
-    # class ProfileListView(ListView):
-    #     model = Post
-    #     paginate_by = POSTS_PER_PAGE
-    #     template_name = 'blog/profile.html'
-    #
-    #     def get_queryset(self):
-    #         return (
-    #             self.model.objects.select_related('author')
-    #             .filter(author__username=self.kwargs['username'])
-    #             .annotate(comment_count=Count("comment"))
-    #             .order_by("-pub_date"))
-    #
-    #     def get_context_data(self, **kwargs):
-    #         context = super().get_context_data(**kwargs)
-    #         context['profile'] = get_object_or_404(
-    #             User,
-    #             username=self.kwargs['username'])
-    #         return context
 
 
 class ProfileUpdateView(LoginRequiredMixin, UpdateView):
