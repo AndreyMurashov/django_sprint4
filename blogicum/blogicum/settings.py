@@ -109,7 +109,7 @@ CSRF_FAILURE_VIEW = 'pages.views.csrf_failure'
 
 MEDIA_ROOT = BASE_DIR / 'media'
 
-LOGIN_REDIRECT_URL = 'blog:index'
+LOGIN_REDIRECT_URL = 'blog:login'
 
 EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
 
