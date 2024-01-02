@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from django.urls import reverse_lazy
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-l_=y)*h12i_h&&cv2+j-6!b2_o@ksxprz@86w%0v+$6l#8$1hp'
@@ -109,7 +111,8 @@ CSRF_FAILURE_VIEW = 'pages.views.csrf_failure'
 
 MEDIA_ROOT = BASE_DIR / 'media'
 
-LOGIN_REDIRECT_URL = 'blog:login'
+LOGIN_URL = reverse_lazy('blog:index')
+LOGIN_REDIRECT_URL = reverse_lazy('blog:index')
 
 EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
 

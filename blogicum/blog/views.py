@@ -102,7 +102,12 @@ class PostCreateView(LoginRequiredMixin, CreateView):
         return reverse("blog:profile", args=[self.request.user])
 
 
-class AuthorCheckMixin(View):
+class AuthorCheckMixin(LoginRequiredMixin, View):
+    model = Post
+    template_name = 'blog/create.html'
+    pk_url_kwarg = 'post_id'
+
+
     def dispatch(self, request, *args, **kwargs):
         if self.get_object().author != request.user:
             return redirect('blog:post_detail',
@@ -110,21 +115,18 @@ class AuthorCheckMixin(View):
         return super().dispatch(request, *args, **kwargs)
 
 
-class PostUpdateView(LoginRequiredMixin, AuthorCheckMixin, UpdateView):
-    model = Post
+class PostUpdateView(AuthorCheckMixin, UpdateView):
     form_class = PostForm
-    template_name = 'blog/create.html'
-    pk_url_kwarg = 'post_id'
 
     def get_success_url(self):
         return reverse('blog:post_detail',
                        kwargs={'post_id': self.kwargs['post_id']})
 
 
-class PostDeleteView(LoginRequiredMixin, AuthorCheckMixin, DeleteView):
-    model = Post
-    template_name = 'blog/create.html'
-    pk_url_kwarg = 'post_id'
+class PostDeleteView(AuthorCheckMixin, DeleteView):
+    # model = Post
+    # template_name = 'blog/create.html'
+    # pk_url_kwarg = 'post_id'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -166,7 +168,9 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
                        kwargs={'post_id': self.kwargs['post_id']})
 
 
-class AuthorCheckCommentMixin(View):
+class AuthorCheckCommentMixin(LoginRequiredMixin, View):
+    model = Comment
+    template_name = "blog/comment.html"
     pk_url_kwarg = "comment_id"
 
     def dispatch(self, request, *args, **kwargs):
@@ -178,25 +182,24 @@ class AuthorCheckCommentMixin(View):
             return redirect('blog:post_detail', post_id=kwargs['post_id'])
         return super().dispatch(request, *args, **kwargs)
 
+    def get_success_url(self):
+        return reverse("blog:post_detail",
+                       kwargs={'post_id': self.kwargs['post_id']})
+
 
 class CommentUpdateView(AuthorCheckCommentMixin, UpdateView):
     form_class = CommentForm
-    model = Comment
-    template_name = "blog/comment.html"
-
-    def get_success_url(self):
-        return reverse("blog:post_detail",
-                       kwargs={'post_id': self.kwargs['post_id']})
 
 
 class CommentDeleteView(AuthorCheckCommentMixin, DeleteView):
-    model = Comment
-    template_name = "blog/comment.html"
-    pk_url_kwarg = "comment_id"
+    pass
+    # model = Comment
+    # template_name = "blog/comment.html"
+    # pk_url_kwarg = "comment_id"
 
-    def get_success_url(self):
-        return reverse("blog:post_detail",
-                       kwargs={'post_id': self.kwargs['post_id']})
+    # def get_success_url(self):
+    #     return reverse("blog:post_detail",
+    #                    kwargs={'post_id': self.kwargs['post_id']})
 
 
 # Действия с пользователями
